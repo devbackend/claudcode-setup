@@ -1,7 +1,17 @@
 #!/usr/bin/env python3
 
 import json
+import os
+import subprocess
 import sys
+import time
+from pathlib import Path
+
+CACHE_DIR = Path.home() / ".cache" / "claude-statusline"
+SESSION_CACHE = CACHE_DIR / "session.json"
+WEEKLY_CACHE = CACHE_DIR / "weekly.json"
+SESSION_TTL = 60  # 1 minute
+WEEKLY_TTL = 300  # 5 minutes
 
 
 def hex_to_ansi(hex_color: str) -> str:
@@ -38,22 +48,18 @@ def get_model_color(model: str) -> str:
     return C_TEXT
 
 
-def format_tokens(tokens: int) -> str:
-    """Format token count (e.g., 110k)."""
-    if tokens >= 1000:
-        return f"{tokens // 1000}k"
-    return str(tokens)
+def get_pct_color(pct: int) -> str:
+    """Get color based on percentage."""
+    if pct > 80:
+        return C_RED
+    elif pct > 60:
+        return C_YELLOW
+    return C_GREEN
 
 
 def build_progress_bar(pct: int, width: int = 10) -> tuple[str, str]:
     """Build a progress bar with dynamic color."""
-    if pct > 80:
-        color = C_RED
-    elif pct > 60:
-        color = C_YELLOW
-    else:
-        color = C_GREEN
-
+    color = get_pct_color(pct)
     filled = min(max(pct * width // 100, 0), width)
     empty = max(width - filled, 0)
 
@@ -62,11 +68,118 @@ def build_progress_bar(pct: int, width: int = 10) -> tuple[str, str]:
     return f"{color}{bar_filled}{C_GRAY}{bar_empty}{C_RESET}", color
 
 
+def get_claude_token() -> str | None:
+    """Get Claude access token from macOS Keychain."""
+    try:
+        result = subprocess.run(
+            ["security", "find-generic-password", "-s", "Claude Code-credentials", "-w"],
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+        if result.returncode != 0:
+            return None
+        creds = json.loads(result.stdout.strip())
+        # Token is nested in claudeAiOauth
+        oauth = creds.get("claudeAiOauth", {})
+        return oauth.get("accessToken")
+    except (subprocess.TimeoutExpired, json.JSONDecodeError, FileNotFoundError):
+        return None
+
+
+def fetch_usage(token: str) -> dict | None:
+    """Fetch usage data from Anthropic API."""
+    try:
+        result = subprocess.run(
+            [
+                "curl",
+                "-s",
+                "--max-time",
+                "5",
+                "https://api.anthropic.com/api/oauth/usage",
+                "-H",
+                f"Authorization: Bearer {token}",
+                "-H",
+                "anthropic-beta: oauth-2025-04-20",
+            ],
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+        if result.returncode != 0:
+            return None
+        return json.loads(result.stdout)
+    except (subprocess.TimeoutExpired, json.JSONDecodeError):
+        return None
+
+
+def get_cached_usage(cache_file: Path, ttl: int) -> dict | None:
+    """Get cached usage data if still valid."""
+    if not cache_file.exists():
+        return None
+    try:
+        mtime = cache_file.stat().st_mtime
+        if time.time() - mtime > ttl:
+            return None
+        with open(cache_file) as f:
+            return json.load(f)
+    except (OSError, json.JSONDecodeError):
+        return None
+
+
+def save_cache(cache_file: Path, data: dict) -> None:
+    """Save usage data to cache."""
+    try:
+        CACHE_DIR.mkdir(parents=True, exist_ok=True)
+        with open(cache_file, "w") as f:
+            json.dump(data, f)
+    except OSError:
+        pass
+
+
+def get_usage_data() -> tuple[int | None, int | None]:
+    """Get session (5h) and weekly (7d) usage percentages."""
+    # Try session cache
+    session_data = get_cached_usage(SESSION_CACHE, SESSION_TTL)
+    weekly_data = get_cached_usage(WEEKLY_CACHE, WEEKLY_TTL)
+
+    # If both caches valid, return cached values
+    if session_data is not None and weekly_data is not None:
+        return session_data.get("pct"), weekly_data.get("pct")
+
+    # Need to fetch fresh data
+    token = get_claude_token()
+    if not token:
+        return None, None
+
+    usage = fetch_usage(token)
+    if not usage:
+        return None, None
+
+    # Extract percentages
+    session_pct = None
+    weekly_pct = None
+
+    five_hour = usage.get("five_hour", {})
+    if five_hour:
+        session_pct = int(float(five_hour.get("utilization", 0)))
+        save_cache(SESSION_CACHE, {"pct": session_pct})
+
+    seven_day = usage.get("seven_day", {})
+    if seven_day:
+        weekly_pct = int(float(seven_day.get("utilization", 0)))
+        save_cache(WEEKLY_CACHE, {"pct": weekly_pct})
+
+    return session_pct, weekly_pct
+
+
 def main():
     try:
         data = json.load(sys.stdin)
     except (json.JSONDecodeError, ValueError):
         return
+
+    parts = []
 
     # Model and version
     model_data = data.get("model", {})
@@ -81,9 +194,10 @@ def main():
     model_color = get_model_color(model_id)
     model_short = model_display.lower()
 
-    model_part = f"{C_GRAY}{model_color}{model_short}{C_GRAY} │ {C_TEXT}v{version}{C_GRAY}{C_RESET}"
+    parts.append(f"{model_color}{model_short}{C_RESET}")
+    parts.append(f"{C_TEXT}v{version}{C_RESET}")
 
-    # Context window usage
+    # Context window usage (just percentage)
     usage = data.get("context_window", {}).get("current_usage")
     size = data.get("context_window", {}).get("context_window_size", 200000)
 
@@ -96,26 +210,31 @@ def main():
     else:
         current = 0
 
-    # Autocompact triggers at 77.5% (100% - 22.5% buffer)
     autocompact_threshold = size * 775 // 1000
-    pct = (
+    context_pct = (
         min(current * 100 // autocompact_threshold, 100)
         if autocompact_threshold > 0
         else 0
     )
-    remaining = max(autocompact_threshold - current, 0)
+    context_color = get_pct_color(context_pct)
+    parts.append(f"{C_TEXT}context: {context_color}{context_pct}%{C_RESET}")
 
-    remaining_fmt = format_tokens(remaining)
-    current_fmt = format_tokens(current)
+    # Session and weekly usage
+    session_pct, weekly_pct = get_usage_data()
 
-    progress_bar, pct_color = build_progress_bar(pct)
+    if session_pct is not None:
+        bar, _ = build_progress_bar(session_pct, 8)
+        color = get_pct_color(session_pct)
+        parts.append(f"{C_TEXT}session: {color}{session_pct}%{C_RESET} {C_GRAY}[{C_RESET}{bar}{C_GRAY}]{C_RESET}")
 
-    context_part = (
-        f" {C_GRAY}│{C_RESET} {pct_color}{pct}%{C_RESET}: "
-        f"{current_fmt}{C_GRAY}[{C_RESET}{progress_bar}{C_GRAY}]{C_RESET}{remaining_fmt}"
-    )
+    if weekly_pct is not None:
+        bar, _ = build_progress_bar(weekly_pct, 8)
+        color = get_pct_color(weekly_pct)
+        parts.append(f"{C_TEXT}weekly: {color}{weekly_pct}%{C_RESET} {C_GRAY}[{C_RESET}{bar}{C_GRAY}]{C_RESET}")
 
-    print(f"{model_part}{context_part}", end="")
+    # Join with separator
+    separator = f" {C_GRAY}│{C_RESET} "
+    print(separator.join(parts), end="")
 
 
 if __name__ == "__main__":
