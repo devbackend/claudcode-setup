@@ -5,6 +5,7 @@ import os
 import subprocess
 import sys
 import time
+from datetime import datetime
 from pathlib import Path
 
 CACHE_DIR = Path.home() / ".cache" / "claude-statusline"
@@ -57,6 +58,26 @@ def get_pct_color(pct: int) -> str:
     return C_GREEN
 
 
+def format_time_until_reset(resets_at: str | None) -> str | None:
+    """Format time remaining until reset."""
+    if not resets_at:
+        return None
+    try:
+        reset_time = datetime.fromisoformat(resets_at.replace("Z", "+00:00"))
+        now = datetime.now(reset_time.tzinfo)
+        delta = reset_time - now
+        if delta.total_seconds() <= 0:
+            return None
+        total_minutes = int(delta.total_seconds() // 60)
+        hours = total_minutes // 60
+        minutes = total_minutes % 60
+        if hours > 0:
+            return f"{hours}h{minutes:02d}m"
+        return f"{minutes}m"
+    except (ValueError, TypeError):
+        return None
+
+
 def build_progress_bar(pct: int, width: int = 10) -> tuple[str, str]:
     """Build a progress bar with dynamic color."""
     color = get_pct_color(pct)
@@ -72,7 +93,13 @@ def get_claude_token() -> str | None:
     """Get Claude access token from macOS Keychain."""
     try:
         result = subprocess.run(
-            ["security", "find-generic-password", "-s", "Claude Code-credentials", "-w"],
+            [
+                "security",
+                "find-generic-password",
+                "-s",
+                "Claude Code-credentials",
+                "-w",
+            ],
             capture_output=True,
             text=True,
             timeout=5,
@@ -137,15 +164,15 @@ def save_cache(cache_file: Path, data: dict) -> None:
         pass
 
 
-def get_usage_data() -> tuple[int | None, int | None]:
-    """Get session (5h) and weekly (7d) usage percentages."""
+def get_usage_data() -> tuple[dict | None, dict | None]:
+    """Get session (5h) and weekly (7d) usage data."""
     # Try session cache
     session_data = get_cached_usage(SESSION_CACHE, SESSION_TTL)
     weekly_data = get_cached_usage(WEEKLY_CACHE, WEEKLY_TTL)
 
     # If both caches valid, return cached values
     if session_data is not None and weekly_data is not None:
-        return session_data.get("pct"), weekly_data.get("pct")
+        return session_data, weekly_data
 
     # Need to fetch fresh data
     token = get_claude_token()
@@ -156,21 +183,24 @@ def get_usage_data() -> tuple[int | None, int | None]:
     if not usage:
         return None, None
 
-    # Extract percentages
-    session_pct = None
-    weekly_pct = None
-
+    # Extract data
     five_hour = usage.get("five_hour", {})
     if five_hour:
-        session_pct = int(float(five_hour.get("utilization", 0)))
-        save_cache(SESSION_CACHE, {"pct": session_pct})
+        session_data = {
+            "pct": int(float(five_hour.get("utilization", 0))),
+            "resets_at": five_hour.get("resets_at"),
+        }
+        save_cache(SESSION_CACHE, session_data)
 
     seven_day = usage.get("seven_day", {})
     if seven_day:
-        weekly_pct = int(float(seven_day.get("utilization", 0)))
-        save_cache(WEEKLY_CACHE, {"pct": weekly_pct})
+        weekly_data = {
+            "pct": int(float(seven_day.get("utilization", 0))),
+            "resets_at": seven_day.get("resets_at"),
+        }
+        save_cache(WEEKLY_CACHE, weekly_data)
 
-    return session_pct, weekly_pct
+    return session_data, weekly_data
 
 
 def main():
@@ -220,17 +250,27 @@ def main():
     parts.append(f"{C_TEXT}context: {context_color}{context_pct}%{C_RESET}")
 
     # Session and weekly usage
-    session_pct, weekly_pct = get_usage_data()
+    session_data, weekly_data = get_usage_data()
 
-    if session_pct is not None:
-        bar, _ = build_progress_bar(session_pct, 8)
-        color = get_pct_color(session_pct)
-        parts.append(f"{C_TEXT}session: {color}{session_pct}%{C_RESET} {C_GRAY}[{C_RESET}{bar}{C_GRAY}]{C_RESET}")
+    if session_data is not None:
+        pct = session_data.get("pct", 0)
+        bar, _ = build_progress_bar(pct, 8)
+        color = get_pct_color(pct)
+        reset_str = format_time_until_reset(session_data.get("resets_at"))
+        reset_part = (
+            f" {C_TEXT}reset: {C_GREEN}{reset_str}{C_RESET}" if reset_str else ""
+        )
+        parts.append(
+            f"{C_TEXT}session: {color}{pct}%{C_RESET} {C_GRAY}[{C_RESET}{bar}{C_GRAY}]{C_RESET}{reset_part}"
+        )
 
-    if weekly_pct is not None:
-        bar, _ = build_progress_bar(weekly_pct, 8)
-        color = get_pct_color(weekly_pct)
-        parts.append(f"{C_TEXT}weekly: {color}{weekly_pct}%{C_RESET} {C_GRAY}[{C_RESET}{bar}{C_GRAY}]{C_RESET}")
+    if weekly_data is not None:
+        pct = weekly_data.get("pct", 0)
+        bar, _ = build_progress_bar(pct, 8)
+        color = get_pct_color(pct)
+        parts.append(
+            f"{C_TEXT}weekly: {color}{pct}%{C_RESET} {C_GRAY}[{C_RESET}{bar}{C_GRAY}]{C_RESET}"
+        )
 
     # Join with separator
     separator = f" {C_GRAY}│{C_RESET} "
