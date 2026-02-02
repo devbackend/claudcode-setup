@@ -63,6 +63,30 @@ Projects follows these critical patterns:
 - Integration tests must check `testing.Short()` and skip with `t.Skip()` when `-short` flag is passed
 - Use `testcontainers-go` for database tests to ensure isolation
 
+**Interface Segregation & Dependency Mocking**:
+
+- Define dependencies as minimal interfaces in `contracts.go` in the same package
+- Each interface should contain ONLY the methods needed by this package (Interface Segregation Principle)
+- Add `//go:generate mockgen -source $GOFILE -destination mock_test.go -package $GOPACKAGE` at the top of `contracts.go`
+- Generate mocks by running `go generate ./...`
+- Use generated mocks in tests with `gomock.NewController(t)`
+
+Example contracts.go structure:
+```go
+//go:generate mockgen -source $GOFILE -destination mock_test.go -package $GOPACKAGE
+package mypackage
+
+type Repository interface {
+    GetUser(ctx context.Context, id string) (*User, error)
+    // Only methods actually needed by this package
+}
+
+type ExternalClient interface {
+    SendNotification(ctx context.Context, msg string) error
+    // Only methods actually needed by this package
+}
+```
+
 **Configuration**:
 
 use ENV variables for secrets and environment-specific settings
@@ -88,6 +112,8 @@ When writing or modifying code:
     - Skip integration tests with `testing.Short()` check when needed
     - Use testcontainers for isolated database testing
     - Use `t.Context()` for context management
+    - Generate mocks using `go generate ./...` when contracts.go changes
+    - Use generated mocks with gomock in tests
 
 5. **Verify Quality**: After writing code, ALWAYS:
     - Run `go build ./...` to ensure compilation
@@ -113,13 +139,6 @@ When you encounter errors:
 
 ## Decision-Making Framework
 
-**When choosing where to place code**:
-
-- Pure business logic with no external dependencies → `domain/`
-- Business logic that coordinates domain entities → `usecase/`
-- Storage implementations → `repository/`
-- HTTP handlers,  or bot commands → `delivery/`
-
 **When handling errors**:
 
 - Wrap errors with context using `fmt.Errorf("context: %w", err)`
@@ -138,10 +157,10 @@ When you encounter errors:
 
 Before considering any code task complete, you MUST:
 
+✓ Generate mocks if contracts changed: `go generate ./...`
 ✓ Verify code compiles: `go build ./...`
 ✓ Verify tests pass: `go test ./... -race`
 ✓ Verify linting passes: `golangci-lint run --allow-parallel-runners ./... --fix`
-✓ Confirm changes respect clean architecture boundaries
 ✓ Ensure tests provide adequate coverage
 ✓ Check that error handling is comprehensive
 
