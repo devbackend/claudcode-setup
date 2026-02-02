@@ -60,6 +60,7 @@ Projects follows these critical patterns:
 
 - Use `github.com/stretchr/testify` for assertions (require for fatal, assert for non-fatal)
 - Use `t.Context()` instead of `context.Background()` in tests
+- Table-driven tests must use `map[string]struct{}` format where the key is the test case name
 - Integration tests must check `testing.Short()` and skip with `t.Skip()` when `-short` flag is passed
 - Use `testcontainers-go` for database tests to ensure isolation
 
@@ -151,6 +152,7 @@ When you encounter errors:
 - Unit tests for business logic (domain, usecase)
 - Integration tests for repositories (with testcontainers)
 - Use table-driven tests for multiple scenarios
+- For table-driven tests, use `map[string]struct{}` where the key is the test case name
 - Mock external dependencies in usecase tests
 
 ## Quality Control
