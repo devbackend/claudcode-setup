@@ -78,30 +78,77 @@ Projects follows these critical patterns:
 - Write benchmarks for performance-critical code using `go test -bench=. -benchmem`
 - Profile hot paths with pprof when optimizing performance
 
-**Interface Segregation & Dependency Mocking**:
+**Interface Segregation Principle (ISP) - CRITICAL**:
 
-- Define dependencies as minimal interfaces in `contracts.go` in the same package
-- Each interface should contain ONLY the methods needed by this package (Interface Segregation Principle)
-- Add `//go:generate mockgen -source $GOFILE -destination mock_test.go -package $GOPACKAGE` at the top of `contracts.go`
-- Generate mocks by running `go generate ./...`
-- Use generated mocks in tests with `gomock.NewController(t)`
+**MANDATORY: Apply ISP to ALL external dependencies without exception**
 
-Example contracts.go structure:
+- **NEVER use concrete types as struct fields for external dependencies**
+- **ALWAYS create minimal interfaces in `contracts.go` for ANY external dependency**
+- This applies to:
+  - ✅ External libraries (DB repositories, Redis client, HTTP client, etc.)
+  - ✅ Structs from other internal packages
+  - ✅ Any dependency that will be mocked in tests
+  - ❌ Domain entities (User, Product, etc.) - these can be passed directly
+  - ❌ Simple data structures without behavior (configs, DTOs)
+
+**Required steps for every struct with dependencies**:
+
+1. Create `contracts.go` in the same package
+2. Define minimal interfaces with ONLY the methods actually used
+3. Add `//go:generate mockgen -source $GOFILE -destination mock_test.go -package $GOPACKAGE` at the top
+4. Use interface types in struct fields, NOT concrete types
+5. Generate mocks: `go generate ./...`
+6. Use generated mocks in tests with `gomock.NewController(t)`
+
+**Examples:**
 
 ```go
-//go:generate mockgen -source $GOFILE -destination mock_test.go -package $GOPACKAGE
-package mypackage
-
-type Repository interface {
-    GetUser(ctx context.Context, id string) (*User, error)
-    // Only methods actually needed by this package
+// ❌ WRONG: Using concrete types
+type Handler struct {
+    bot *tgbotapi.BotAPI           // NEVER do this
+    fsm *fsm.FSM                   // NEVER do this
+    db  *sql.DB                    // NEVER do this
 }
 
-type ExternalClient interface {
-    SendNotification(ctx context.Context, msg string) error
-    // Only methods actually needed by this package
+// ✅ CORRECT: Using interfaces
+type Handler struct {
+    bot BotAPI                      // Use interface
+    fsm FSM                         // Use interface
+    db  Database                    // Use interface
+}
+
+// contracts.go
+//go:generate mockgen -source $GOFILE -destination mock_test.go -package $GOPACKAGE
+package handler
+
+import (
+    "context"
+    tgbotapi "github.com/go-telegram-bot-api/telegram-bot-api/v5"
+)
+
+// Extract only methods you actually use
+type BotAPI interface {
+    Send(c tgbotapi.Chattable) (tgbotapi.Message, error)
+}
+
+type FSM interface {
+    Reset(ctx context.Context, userID int64) error
+    GetState(ctx context.Context, userID int64) (*StateData, error)
+}
+
+type Database interface {
+    Query(ctx context.Context, query string, args ...any) (*sql.Rows, error)
+    Exec(ctx context.Context, query string, args ...any) (sql.Result, error)
 }
 ```
+
+**Common ISP violations to avoid:**
+
+- ❌ `repo *postgres.UserRepository` → ✅ `repo UserRepository`
+- ❌ `client *redis.Client` → ✅ `client RedisClient`
+- ❌ `bot *tgbotapi.BotAPI` → ✅ `bot BotAPI`
+- ❌ `fsm *fsm.FSM` → ✅ `fsm FSM`
+- ❌ `parser *parsing.HaloParser` → ✅ `parser ListingParser`
 
 **Configuration**:
 
