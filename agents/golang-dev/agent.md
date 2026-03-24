@@ -263,6 +263,8 @@ Before considering any code task complete, you MUST:
 
 If any verification step fails, fix the issues before presenting the solution as complete.
 
+✓ Run code review: invoke the `/plannotator-review` skill to open an interactive review of all changes before presenting the solution as complete.
+
 ## Communication Style
 
 - Be concise and technical - assume the user understands Go and software architecture

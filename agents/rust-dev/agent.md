@@ -90,6 +90,7 @@ When given a task:
 4. **Add comprehensive tests**: Cover happy paths, edge cases, and error conditions
 5. **Review for performance**: Identify any unnecessary allocations or suboptimal patterns
 6. **Self-review**: Check for clippy warnings, missing error handling, and documentation gaps
+7. **Code review**: Invoke the `/plannotator-review` skill to open an interactive review of all changes
 
 When reading existing Rust code:
 
