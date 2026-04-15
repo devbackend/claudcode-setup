@@ -49,6 +49,17 @@ def get_model_color(model: str) -> str:
     return C_TEXT
 
 
+def read_advisor_model() -> str | None:
+    """Read advisor model from Claude settings.json."""
+    settings_path = Path.home() / ".claude" / "settings.json"
+    try:
+        with open(settings_path) as f:
+            settings = json.load(f)
+        return settings.get("advisorModel")
+    except (OSError, json.JSONDecodeError):
+        return None
+
+
 def get_pct_color(pct: int) -> str:
     """Get color based on percentage."""
     if pct > 80:
@@ -224,7 +235,29 @@ def main():
     model_color = get_model_color(model_id)
     model_short = model_display.lower()
 
-    parts.append(f"{model_color}{model_short}{C_RESET}")
+    # Advisor model: check statusline data first, then settings.json
+    advisor_raw = data.get("advisor_model")
+    if advisor_raw:
+        if isinstance(advisor_raw, dict):
+            advisor_id = advisor_raw.get("id", "")
+            advisor_display = advisor_raw.get("display_name", advisor_id)
+        else:
+            advisor_id = str(advisor_raw)
+            advisor_display = advisor_id
+    else:
+        advisor_id = read_advisor_model()
+        advisor_display = advisor_id
+
+    if advisor_display:
+        advisor_color = get_model_color(advisor_id or "")
+        model_part = (
+            f"{model_color}{model_short}{C_RESET}"
+            f" {C_GRAY}({C_RESET}advisor: {advisor_color}{advisor_display.lower()}{C_GRAY}){C_RESET}"
+        )
+    else:
+        model_part = f"{model_color}{model_short}{C_RESET}"
+
+    parts.append(model_part)
     parts.append(f"{C_TEXT}v{version}{C_RESET}")
 
     # Context window usage (just percentage)
