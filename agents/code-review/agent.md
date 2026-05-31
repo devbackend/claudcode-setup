@@ -43,12 +43,14 @@ git diff origin/<base_branch>...HEAD --name-only
 ```
 
 - Contains `.go` files → run `review-go`
+- Contains `.rs` files → run `review-rust`
 - Always run `review-security` and `review-performance` (language-agnostic)
 
 ### 5. Run reviews in parallel
 
 Launch via Agent tool in parallel:
 - `Skill("review-go")` ← if Go files changed
+- `Skill("review-rust")` ← if Rust files changed
 - `Skill("review-security")`
 - `Skill("review-performance")`
 
