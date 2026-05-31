@@ -22,5 +22,6 @@ After the installer finishes, list what was synced:
 - `~/.claude/agents/` — agents
 - `~/.claude/skills/` — skills
 - `~/.claude/commands/` — commands
+- `~/.claude/settings.json` — merged settings (hooks, scalar fields)
 
-If the installer prompted about a conflict, surface it to the user.
+If the installer prompted about a conflict (scalar field overwrite), surface it to the user.

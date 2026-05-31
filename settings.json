@@ -1,0 +1,27 @@
+{
+  "advisorModel": "opus",
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "SESS=\"$TERM_SESSION_ID\"; PANE=\"$TMUX_PANE\"; SOCK=$(echo \"$TMUX\" | cut -d, -f1); terminal-notifier -message 'Work complete — check the terminal' -title 'Claude Code' -sound Glass -execute \"$HOME/.claude/iterm-focus.sh '$SESS' '$PANE' '$SOCK'\"",
+            "async": true
+          }
+        ]
+      }
+    ],
+    "Notification": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "SESS=\"$TERM_SESSION_ID\"; PANE=\"$TMUX_PANE\"; SOCK=$(echo \"$TMUX\" | cut -d, -f1); terminal-notifier -message 'Claude needs your attention' -title 'Claude Code' -sound Ping -execute \"$HOME/.claude/iterm-focus.sh '$SESS' '$PANE' '$SOCK'\"",
+            "async": true
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -47,6 +47,13 @@ create_symlink() {
     fi
 }
 
+# Symlink iterm-focus.sh
+if [ -f "$REPO_DIR/iterm-focus.sh" ]; then
+    echo "🔗 Linking iterm-focus.sh..."
+    chmod +x "$REPO_DIR/iterm-focus.sh"
+    create_symlink "$REPO_DIR/iterm-focus.sh" "$CLAUDE_DIR/iterm-focus.sh" "iterm-focus.sh"
+fi
+
 # Symlink devbackend.md and ensure CLAUDE.md includes it
 if [ -f "$REPO_DIR/devbackend.md" ]; then
     echo "📄 Linking devbackend.md..."
@@ -93,6 +100,73 @@ if [ -d "$REPO_DIR/commands" ]; then
     done
 fi
 
+# Merge settings.json
+if [ -f "$REPO_DIR/settings.json" ]; then
+    echo "⚙️  Merging settings.json..."
+    python3 - "$REPO_DIR/settings.json" "$CLAUDE_DIR/settings.json" <<'PYEOF'
+import json, sys, os
+
+repo_path = sys.argv[1]
+global_path = sys.argv[2]
+
+with open(repo_path) as f:
+    repo = json.load(f)
+
+if os.path.exists(global_path):
+    with open(global_path) as f:
+        glob = json.load(f)
+else:
+    glob = {}
+
+# --- Scalar fields ---
+SCALAR_KEYS = [k for k in repo if k != 'hooks']
+for key in SCALAR_KEYS:
+    repo_val = repo[key]
+    if key not in glob:
+        glob[key] = repo_val
+        print(f'  ✅ Added {key}: {repo_val}')
+    elif glob[key] == repo_val:
+        print(f'  ✓ {key} already set: {glob[key]}')
+    else:
+        print(f'  ⚠️  Conflict: {key} = {glob[key]!r} (global) vs {repo_val!r} (repo)')
+        answer = input(f'  Overwrite with {repo_val!r}? (y/N): ').strip().lower()
+        if answer == 'y':
+            glob[key] = repo_val
+            print(f'  ✅ Updated {key}: {repo_val}')
+        else:
+            print(f'  ⏭️  Kept existing {key}: {glob[key]}')
+
+# --- Hooks (deep merge, dedup by exact command string) ---
+repo_hooks = repo.get('hooks', {})
+if repo_hooks:
+    glob_hooks = glob.setdefault('hooks', {})
+    for event, repo_matchers in repo_hooks.items():
+        glob_matchers = glob_hooks.setdefault(event, [])
+        # Collect all existing commands for this event
+        existing_commands = {
+            h.get('command')
+            for gm in glob_matchers
+            for h in gm.get('hooks', [])
+        }
+        for repo_matcher in repo_matchers:
+            for hook in repo_matcher.get('hooks', []):
+                cmd = hook.get('command', '')
+                if cmd in existing_commands:
+                    print(f'  ✓ Hook already exists [{event}]: {cmd[:60]}...' if len(cmd) > 60 else f'  ✓ Hook already exists [{event}]')
+                else:
+                    if glob_matchers:
+                        glob_matchers[0].setdefault('hooks', []).append(hook)
+                    else:
+                        glob_matchers.append({'hooks': [hook]})
+                    existing_commands.add(cmd)
+                    print(f'  ✅ Added hook [{event}]: {cmd[:60]}...' if len(cmd) > 60 else f'  ✅ Added hook [{event}]')
+
+with open(global_path, 'w') as f:
+    json.dump(glob, f, indent=2)
+    f.write('\n')
+PYEOF
+fi
+
 echo ""
 echo "✨ Installation complete!"
 echo ""
@@ -102,3 +176,4 @@ echo "📝 Note: The following are now symlinked to your repository:"
 echo "  - ~/.claude/agents/<name> -> $REPO_DIR/agents/<name> (per agent)"
 [ -d "$REPO_DIR/skills" ] && echo "  - ~/.claude/skills/<name> -> $REPO_DIR/skills/<name> (per skill)"
 [ -d "$REPO_DIR/commands" ] && echo "  - ~/.claude/commands/<name>.md -> $REPO_DIR/commands/<name>.md (per command)"
+[ -f "$REPO_DIR/settings.json" ] && echo "  - ~/.claude/settings.json merged from $REPO_DIR/settings.json"
