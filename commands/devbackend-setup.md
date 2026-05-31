@@ -9,6 +9,12 @@ readlink ~/.claude/devbackend.md
 
 The result is the `devbackend.md` path inside the repo. Strip the trailing `/devbackend.md` component to get `REPO_DIR`.
 
+## Pull latest changes
+
+```bash
+git -C "$REPO_DIR" pull
+```
+
 ## Run the installer
 
 ```bash
