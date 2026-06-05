@@ -100,6 +100,17 @@ if [ -d "$REPO_DIR/commands" ]; then
     done
 fi
 
+# Symlink individual examples (preserves examples from other sources)
+if [ -d "$REPO_DIR/examples" ]; then
+    echo "📁 Linking examples..."
+    mkdir -p "$CLAUDE_DIR/examples"
+    for example_file in "$REPO_DIR/examples"/*; do
+        [ -e "$example_file" ] || continue
+        example_name="$(basename "$example_file")"
+        create_symlink "$example_file" "$CLAUDE_DIR/examples/$example_name" "examples/$example_name"
+    done
+fi
+
 # Merge settings.json
 if [ -f "$REPO_DIR/settings.json" ]; then
     echo "⚙️  Merging settings.json..."
@@ -176,4 +187,5 @@ echo "📝 Note: The following are now symlinked to your repository:"
 echo "  - ~/.claude/agents/<name> -> $REPO_DIR/agents/<name> (per agent)"
 [ -d "$REPO_DIR/skills" ] && echo "  - ~/.claude/skills/<name> -> $REPO_DIR/skills/<name> (per skill)"
 [ -d "$REPO_DIR/commands" ] && echo "  - ~/.claude/commands/<name>.md -> $REPO_DIR/commands/<name>.md (per command)"
+[ -d "$REPO_DIR/examples" ] && echo "  - ~/.claude/examples/<name> -> $REPO_DIR/examples/<name> (per example)"
 [ -f "$REPO_DIR/settings.json" ] && echo "  - ~/.claude/settings.json merged from $REPO_DIR/settings.json"

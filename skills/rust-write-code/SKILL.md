@@ -32,12 +32,5 @@ Apply the loaded standards:
 
 If you discovered a project-specific convention not already in `.claude/memory/` (e.g., async runtime config, custom error types, crate choices), save it as a memory file:
 
-- Write to `.claude/memory/<topic>.md` with frontmatter:
-  ```
-  ---
-  name: <slug>
-  description: <one-line summary>
-  type: project
-  ---
-  ```
+- Write to `.claude/memory/<topic>.md` using the format in `~/.claude/examples/memory-frontmatter.md`
 - Add a pointer to `.claude/memory/MEMORY.md`

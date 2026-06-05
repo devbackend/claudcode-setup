@@ -12,22 +12,7 @@ Use `t.Context()` instead of `context.Background()` in all tests.
 
 ## Table-Driven Tests
 
-Always use `map[string]struct{}` where the key is the test case name:
-
-```go
-tests := map[string]struct{
-    input    string
-    expected string
-}{
-    "empty input":   {input: "", expected: ""},
-    "normal case":   {input: "foo", expected: "FOO"},
-}
-for name, tc := range tests {
-    t.Run(name, func(t *testing.T) {
-        // ...
-    })
-}
-```
+Always use `map[string]struct{}` where the key is the test case name. See `~/.claude/examples/go-table-driven-test.go`.
 
 ## Integration Tests
 

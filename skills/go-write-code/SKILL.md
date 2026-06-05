@@ -31,12 +31,5 @@ Apply the loaded standards:
 
 If you discovered a project-specific convention not already in `.claude/memory/` (e.g., which DB library, logger, patterns in use), save it as a memory file:
 
-- Write the memory to `.claude/memory/<topic>.md` with frontmatter:
-  ```
-  ---
-  name: <slug>
-  description: <one-line summary>
-  type: project
-  ---
-  ```
+- Write the memory to `.claude/memory/<topic>.md` using the format in `~/.claude/examples/memory-frontmatter.md`
 - Add a pointer to `.claude/memory/MEMORY.md`

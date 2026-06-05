@@ -12,3 +12,7 @@ When looking up documentation for libraries, packages, or external dependencies 
 2. `mcp__context7__get-library-docs` — fetch the documentation using that ID
 
 If Context7 doesn't have the library, fall back to web search.
+
+## Control Flow: Prefer Early Return
+
+Avoid `else` when the `if` branch exits. See `~/.claude/examples/early-return.go`.

@@ -8,12 +8,7 @@
 
 ## CPU-bound parallelism
 
-Use `rayon` for data parallelism — not `tokio` tasks:
-
-```rust
-use rayon::prelude::*;
-let sum: u64 = data.par_iter().map(|x| x * x).sum();
-```
+Use `rayon` for data parallelism — not `tokio` tasks. See `~/.claude/examples/rust-concurrency.rs`.
 
 ## Shared state
 
@@ -23,18 +18,4 @@ let sum: u64 = data.par_iter().map(|x| x * x).sum();
 
 ## Common patterns
 
-```rust
-// Fan-out with JoinSet
-let mut set = tokio::task::JoinSet::new();
-for item in items {
-    set.spawn(async move { process(item).await });
-}
-while let Some(result) = set.join_next().await {
-    handle(result?)?;
-}
-```
-
-```rust
-// Bounded channel for backpressure
-let (tx, rx) = tokio::sync::mpsc::channel(32);
-```
+See `~/.claude/examples/rust-concurrency.rs`.
