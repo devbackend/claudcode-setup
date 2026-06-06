@@ -7,7 +7,7 @@ description: Security-focused semantic review of changed code. Language-agnostic
 
 ## Load context
 
-Read: `~/.claude/agents/code-review/references/conventional-comments.md`
+Read: `~/.claude/agents/code-reviewer/references/conventional-comments.md`
 
 ## Find changed files
 

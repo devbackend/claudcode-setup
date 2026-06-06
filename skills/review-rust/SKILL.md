@@ -12,7 +12,7 @@ Read in order:
 2. `~/.claude/agents/rust-dev/references/rust-error-handling.md`
 3. `~/.claude/agents/rust-dev/references/rust-concurrency-patterns.md`
 4. `~/.claude/agents/rust-dev/references/rust-performance-patterns.md`
-5. `~/.claude/agents/code-review/references/conventional-comments.md`
+5. `~/.claude/agents/code-reviewer/references/conventional-comments.md`
 
 ## Find changed Rust files
 
