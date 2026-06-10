@@ -9,9 +9,10 @@ description: Write or update Go tests for existing code, following project testi
 
 Read the following references:
 
-1. `~/.claude/agents/golang-dev/references/go-testing-standards.md`
-2. `~/.claude/agents/golang-dev/references/go-isp-patterns.md`
-3. If `.claude/memory/MEMORY.md` exists in the current project — read it for project-specific context
+1. `~/.claude/agents/golang-dev/references/go-core-rules.md`
+2. `~/.claude/agents/golang-dev/references/go-testing-standards.md`
+3. `~/.claude/agents/golang-dev/references/go-isp-patterns.md`
+4. If `.claude/memory/MEMORY.md` exists in the current project — read it for project-specific context
 
 ## Writing Tests
 
