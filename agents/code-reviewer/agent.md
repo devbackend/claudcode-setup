@@ -46,6 +46,7 @@ git diff origin/<base_branch>...HEAD --name-only
 
 - Contains `.go` files → run `review-go`
 - Contains `.rs` files → run `review-rust`
+- Contains `.sql` files → run `pg-review`
 - Always run `review-security` and `review-performance` (language-agnostic)
 
 ### 5. Run reviews in parallel
@@ -53,6 +54,7 @@ git diff origin/<base_branch>...HEAD --name-only
 Launch via Agent tool in parallel:
 - `Skill("review-go")` ← if Go files changed
 - `Skill("review-rust")` ← if Rust files changed
+- `Skill("pg-review")` ← if SQL files changed
 - `Skill("review-security")`
 - `Skill("review-performance")`
 
@@ -94,6 +96,10 @@ gh api repos/{owner}/{repo}/pulls/{number}/reviews \
 | Area | Findings |
 |---|---|
 | Go semantics | N |
+| Rust semantics | N |
+| SQL security | N |
+| SQL performance | N |
+| SQL correctness | N |
 | Security | N |
 | Performance | N |
 ```
