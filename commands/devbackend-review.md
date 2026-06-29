@@ -44,7 +44,11 @@ Write the markdown checklist to `$REVIEW_FILE`.
 
 ## Step 4 — Open in Plannotator
 
-Call `Skill("plannotator-annotate")` with `<REVIEW_FILE path> --json` as args.
+Run via Bash:
+
+```bash
+plannotator annotate "$REVIEW_FILE" --json
+```
 
 Parse the response:
 - `"decision": "approved"` or `"decision": "dismissed"` → acknowledge and stop
