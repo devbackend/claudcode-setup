@@ -77,9 +77,7 @@ Read the actual source files to extract the relevant code snippets for each find
 
 ### 5. Open in Plannotator
 
-```bash
-plannotator annotate "$REVIEW_FILE" --json
-```
+Call `Skill("plannotator-annotate")` passing `<REVIEW_FILE path> --json` as the args (substitute the actual path from the `mktemp` step above).
 
 Wait for the user's response. Parse the JSON result:
 - `"decision": "approved"` → no fixes requested, acknowledge and stop
