@@ -34,8 +34,22 @@ Launch via Agent tool in parallel:
 - `Skill("review-security")`
 - `Skill("review-performance")`
 
-## 4. Return findings
+## 4. Check requirements (if context provided)
 
-Concatenate all `FINDING` blocks from every skill. Return them as-is.
+If the prompt includes a "Change context" section, verify that the actual changes fulfil the stated requirements. For each mismatch or missing piece, emit a FINDING block:
 
-If all skills returned no findings: return `NO FINDINGS`.
+```
+FINDING
+file: <most relevant file, or "general">
+line: <line number if applicable, else 0>
+label: issue
+decoration: blocking (requirements)
+body: <subject>\n\n<what was expected vs what was implemented>
+---
+```
+
+## 5. Return findings
+
+Concatenate all `FINDING` blocks from every skill plus any requirements findings. Return them as-is.
+
+If all checks returned no findings: return `NO FINDINGS`.
